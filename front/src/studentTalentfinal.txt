@@ -1,0 +1,398 @@
+// eslint-disable-next-line<
+import React, { Component, Children } from 'react';
+import { Button, Grid, Row } from 'react-bootstrap';
+import Student from './Student';
+import StudentSelected from './StudentSelected';
+// import students from './Components/CreateStudent';
+import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
+import FilterSection from './Components/FilterSection';
+import Select from "react-select";
+import 'react-select/dist/react-select.css';
+import io from 'socket.io-client';
+import SocketIOFileClient from 'socket.io-file-client';
+import { lchmod } from 'fs';
+
+const skill_list = [
+  { label: "react", value: "react" },
+  { label: "node", value: "node" },
+  { label: "mongo", value: "mongo" },
+  { label: "sqlite", value: "sqlite" },
+  { label: "javascript", value: "javascript" },
+  { label: "html", value: "html" },
+  { label: "css", value: "css" }
+];
+
+
+const students = []
+students.map(
+  (student) => {
+    const { name, city, availability, skills, gender } = student
+    const key = [ name, city, availability, gender, skills.join(' ') ].join(' ')
+    student.key = key;
+    student.id = key;
+    return student
+  }
+)
+
+class FilterSelected extends Component  {
+  constructor(props){
+    super(props)
+    this.state = {
+      cityValue:"beirut",
+      availableValue:"available",
+      genderValue:"m",
+      skills:[],
+      uploader:null,
+      socket:null,
+      // students:[]
+    }
+  }
+  
+  componentDidMount = () => {
+    const socket = io('http://localhost:8888/');//if it wasn't razzle you should do io('http://localhost:3000(or other port)')
+    // socket.on('image:name',(imagename) => {
+    //   socket.emit('message',message,'ahmad',this.state.user.username,this.state.date,imagename)
+    // })
+    const uploader = new SocketIOFileClient(socket);
+    uploader.on('start', (fileInfo) => {
+      console.log('Start uploading', fileInfo);
+    });
+    uploader.on('stream', (fileInfo) => {
+      console.log('Streaming... sent ' + fileInfo.sent + ' bytes.');
+    });
+    uploader.on('complete', (fileInfo) => {
+      console.log('Upload Complete', fileInfo);
+    });
+    uploader.on('error', (err) => {
+      console.log('Error!', err);
+    });
+    uploader.on('abort', (fileInfo) => {
+      console.log('Aborted: ', fileInfo);
+    })
+
+    this.setState({uploader})
+    this.setState({socket})
+    socket.on('student:list',(students_list)=>{
+      // this.setState({students:students_list})
+      // students.push(students_list)
+      // const
+      students.slice()
+      console.log([...students,...students_list])
+    })
+    // socket.on('message:broadcast',(id,text,image,username,date,imagename) => {
+    //   const message = {id, text,image,username,date,imagename, me:false}
+    //   if(id === this.state.user.id){
+    //     message.me = true
+    //   }
+    //   const messages = [...this.state.messages, message]
+    //   this.setState({messages})
+    // })
+
+  }  
+  cityOption = (e) => {
+    const cityValue = e.target.value
+    this.setState({cityValue}) 
+  }
+  availableOption = (e) => {
+    const availableValue = e.target.value
+    this.setState({availableValue}) 
+  }
+  genderOption = (e) => {
+    const genderValue = e.target.value
+    this.setState({genderValue}) 
+  }
+  handleSelectChange = (skills) => {
+    this.setState({ skills });
+  }
+  
+  handleSubmit = (e) => {
+    e.preventDefault()
+        const name = e.target.name.value
+        const city = this.state.cityValue
+        const skills = this.state.skills
+        const availability = this.state.availableValue
+        const gender = this.state.genderValue
+        const image = e.target.photo.files
+        const imagename = e.target.photo.files[0].name 
+        console.log(image)
+        // const single_message = {name,city,skills,availability,gender,imagename}
+        this.state.uploader.upload(image)
+        this.state.socket.emit('student:signup',name,city,skills,availability,gender,imagename)
+  }
+  
+  render(){
+    // console.log('state students---> ',this.state.students)
+    console.log('students---> ',students)
+    return (
+      <div>
+          <h3 className="filterSelected">{this.props.children}</h3>
+            <form onSubmit={this.handleSubmit} encType="multipart/form-data">
+              <label>
+              Name:<input className="input" type="text" name="name" placeholder="name" />
+              </label><br/>
+              <label>
+              {/* City: */}
+              <select   value={this.state.cityValue} className="input" onChange={this.cityOption}>
+                <option value="beirut">BEIRUT</option>
+                <option value="tyre">TYRE</option>
+                <option value="jounyeh">JOUNYEH</option>
+              </select>
+              </label><br/>
+              <label>
+              Availability:
+              <select   value={this.state.availableValue} className="input" onChange={this.availableOption}>
+                <option value="available">available</option>
+                <option value="in less than 1 month">in less than 1 month</option>
+                <option value="in less than 2 months">in less than 2 months</option>
+                <option value="3 months or more">3 months or more</option>
+                <option value="not available">not available</option>
+              </select>
+              </label><br/>
+              <label>
+              Skills:
+              <Select
+                
+                multi
+                joinValues
+                value={this.state.skills}
+                placeholder="Select your favourite(s)"
+                options={skill_list}
+                onChange={this.handleSelectChange}
+              />
+              </label><br/>
+              <label>
+              Gender:
+              <select   value={this.state.genderValue} className="input" onChange={this.genderOption} >
+                <option value="m">male</option>
+                <option value="f">female</option>
+              </select>
+              </label><br/>
+              <label>
+                Upload a photo:
+                <input type="file" id="photo" name="photo" className="student-image" onChange={this.imageAdded}/>
+              </label>
+              <input type="submit" />
+            </form>
+      </div>
+    )
+  }
+}
+
+export default class StudentTalent extends Component {
+  state = {
+    isFilterSelected:false,
+    cityFilter: "",
+    skillFilter:"",
+    availableFilter:"",
+    genderFilter:'',
+    search:'',
+    two:false,
+    userSelectedList:[],
+    show_selected_students:false
+  }
+
+  onChange = (evt) => {
+    this.setState({search:evt.target.value})
+  }
+  filterStudents(){
+    const search = this.state.search.trim();
+    if(!search){ return students }
+    const regex = new RegExp(search,'i');
+    return students.filter(student => regex.test(student.key) )
+  }
+
+  
+  randomStudentList = (a) => { // Fisher-Yates shuffle, no side effects
+    var i = a.length, t, j;
+    a = a.slice()
+    if(i===0){return []}
+    while (--i){
+      t = a[i]
+      a[i] = a[j = ~~(Math.random() * (i + 1))]
+      a[j] = t
+    }
+    return a
+  }
+  renderFilteredStudents() {
+    const students = this.filterStudents()
+    const city = this.state.cityFilter;
+    const skill = this.state.skillFilter;
+    const available = this.state.availableFilter;
+    const gender = this.state.genderFilter
+    const two = this.state.two;
+    const filteredStudents = students.filter( student => {
+      if(city){
+        if(student.city !== city){return false}
+      }
+      if(gender){
+        if(student.gender !== gender){return false}
+      }
+      if(skill){
+        const student_has_skill = student.skills.some(student_skill=>student_skill===skill)
+        console.log(student.skills,skill,student_has_skill)
+        if(student_has_skill === false){
+          return false
+        }
+      }
+      if(available){
+        if(student.availability !== available){ return false}
+      }
+      return true
+    })
+    const studentList = this.randomStudentList(filteredStudents)
+    const finalStudentList = two ? studentList.slice(0,2) : studentList
+    const reactStudents = finalStudentList.map(
+      (student) => <Student  OnClickAdd={() => this.AddStudentToList(student)}  image={'/images/'+student.imagename+'.jpeg'} {...student} key={student.name}/> 
+    )
+    return reactStudents;
+ }
+ 
+   setCityFilter = (cityFilter) => {
+     this.setState({ cityFilter ,two:'', show_selected_students:false,isFilterSelected:true, search:''  })
+    };
+   removeCityFilter = () => {
+    // const cityFilter = this.state.cityFilter
+     this.setState({ cityFilter:'' ,two:'', show_selected_students:false,search:'' })
+    };
+   setSkillFilter = (skillFilter) => {
+     this.setState({ skillFilter, two:'', show_selected_students:false,isFilterSelected:true,search:'' })
+    };
+   removeSkillFilter = () => {
+     this.setState({ skillFilter:'' ,two:'', show_selected_students:false,search:'' })
+    };
+   setAvailabileFilter = (availableFilter) => {
+     this.setState({ availableFilter, two:'', show_selected_students:false,isFilterSelected:true,search:'' })
+    };
+   removeAvailabileFilter = () => {
+     this.setState({ availableFilter:'' ,two:'', show_selected_students:false,search:'' })
+    };
+   setgenderFilter = (genderFilter) => {
+     this.setState({ genderFilter, two:'', show_selected_students:false,isFilterSelected:true,search:'' })
+    };
+   removegenderFilter = () => {
+     this.setState({ genderFilter:'' ,two:'', show_selected_students:false,search:'' })
+    };
+   showAll = () => {
+     this.setState({ cityFilter:'', skillFilter:'',availableFilter:'',genderFilter:'',two:'', show_selected_students:false,search:'' })
+   };
+   showTwo = () => {
+     this.setState({ two:true, cityFilter:'', skillFilter:'',availableFilter:'', show_selected_students:false,search:'' })
+   };
+   
+  showSelected = () => {
+    this.setState({ show_selected_students:true,search:'' })
+   };
+
+  AddStudentToList = (student) => {
+     const userSelectedList = this.state.userSelectedList.slice()
+     userSelectedList.push(student);
+     alert("Student has been added successfully")
+     this.setState({userSelectedList})
+   };
+   OnClickRemove = (student) => {
+      const index = this.state.userSelectedList.indexOf(student)
+      if (index < 0) {
+      return;
+      }
+      const selected = this.state.userSelectedList.slice();
+      selected.splice(index, 1);
+      this.setState({ userSelectedList:selected });
+  } 
+
+  // showAddToList =() => {
+  //    let userList = []
+  //    let element = create_student('mohammad', '1', 'DRUPAL', 'Walking', 'yes'  ,'tyre')
+  //   //  console.log(userList)
+  //   userList = this.state.userList.slice()
+  //   userList.push(element)
+  //   this.setState({ userList:userList,studentAdded:true,two:false ,all:false, cityFilter:'', skillFilter:'',availableFilter:'' })
+  //  };
+
+  renderSelectedStudents(){
+    return this.state.userSelectedList.map(
+        (student) => <StudentSelected  OnClickRemove={() => this.OnClickRemove(student)} OnClickAdd={() => this.AddStudentToList(student)}   image={'/images/'+student.name+'.jpeg'} {...student} key={student.name}/> 
+      )
+   }
+
+  renderStudents(){
+    if(this.state.show_selected_students){
+      return this.renderSelectedStudents()
+    }else{
+      return this.renderFilteredStudents() 
+    }
+  }
+
+  render() {
+    const students_list = this.renderStudents()
+    
+    return (
+    <div>
+       <div className="multipleFilters">
+          { ( this.state.cityFilter || this.state.skillFilter || this.state.availableFilter|| this.state.genderFilter?
+               null : <FilterSelected >
+               No Filter Selected
+            </FilterSelected>  ) 
+          }
+       
+          { ( this.state.cityFilter? <div className="block city-block">
+          
+          {this.state.cityFilter}
+           <Button bsStyle="danger" onClick = { this.removeCityFilter}>X</Button>
+           </div> : null ) 
+          }
+          { ( this.state.skillFilter? <div className="block skill-block">{this.state.skillFilter}
+          <Button bsStyle="danger" onClick = { this.removeSkillFilter}>X</Button>
+          </div> : null ) 
+          }
+          { ( this.state.availableFilter? <div className="block available-block">{this.state.availableFilter}
+          <Button bsStyle="danger" onClick = { this.removeAvailabileFilter}>X</Button>
+          </div> : null ) 
+          }
+          { ( this.state.genderFilter? <div className="block available-block">{this.state.genderFilter}
+          <Button bsStyle="danger" onClick = { this.removegenderFilter}>X</Button>
+          </div> : null ) 
+          }
+      </div>
+
+      {/* Filter Section contains all the html and buttons begins here */}
+      <div className="filter">
+          
+          <FilterSection 
+          setCityFilter={this.setCityFilter} 
+          setSkillFilter={this.setSkillFilter}
+          setAvailabileFilter={this.setAvailabileFilter} 
+          setgenderFilter={this.setgenderFilter} 
+          showAll={this.showAll} 
+          showSelected={this.showSelected} 
+          showTwo={this.showTwo}
+          searchValue={this.state.search} 
+          onSearchChange={this.onChange}
+          />
+      </div>
+      {/* Ends here.... */}
+
+
+   <div className="student">
+   <Grid>
+      <Row>
+        <ReactCSSTransitionGroup transitionName={"student"} transitionEnterTimeout={500} transitionLeaveTimeout={300}>
+          { students_list.length ? students_list : <div className="noResult">
+          <h1>no results...</h1>
+          <Button onClick={() => this.showAll()} >
+            Show All Students
+          </Button>
+          </div> 
+        }
+        </ReactCSSTransitionGroup>
+        
+
+      </Row>
+    </Grid>
+    </div>  
+  </div>
+)}
+}
+  
+
+
+

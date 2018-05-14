@@ -1,0 +1,29 @@
+{
+  "name": "coditalent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "server": "cd back && npm start",
+    "client": "cd front && npm start",
+    "back": "cd back && npm install",
+    "front": "cd front && npm install",
+    "start": "concurrently --kill-others-on-fail --names \" server client \" \"npm run server\" \"npm run client\" ",
+    "install": "concurrently --kill-others-on-fail --names \" front back \" \"npm run front\" \"npm run back\" "
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadkhoja/CodiTalentsStudents.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ahmadkhoja/CodiTalentsStudents/issues"
+  },
+  "homepage": "https://github.com/ahmadkhoja/CodiTalentsStudents#readme",
+  "dependencies": {
+    "concurrently": "^3.5.1",
+    "nodemon": "^1.17.4"
+  }
+}
